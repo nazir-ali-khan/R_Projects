@@ -1,0 +1,204 @@
+---
+title: "EDA on Ecommerce Dataset"
+author: "Nazir Ali Kahan"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    theme: lumen
+    toc: yes
+---
+
+## 1. Loading all the necessary libraries
+
+```{r}
+library(tidyverse) # used for data manipulation
+library(ggplot2) # used for visualizations
+library(lubridate) # used for dates
+```
+
+
+## 2. Importing the Dataset from CSV file
+
+```{r}
+# Using read.csv command to load data
+Pakistan.Largest.Ecommerce.Dataset <- read.csv("C:/Users/nazir ali khan/Downloads/Pakistan Largest Ecommerce Dataset.csv", stringsAsFactors=TRUE)
+```
+
+Loading this dataset into a new variable to keep the original copy in place:
+
+```{r}
+ecom <- Pakistan.Largest.Ecommerce.Dataset
+```
+
+
+## 3. Checking Data Types and the range of the values
+
+```{r}
+glimpse(ecom)
+```
+
+As we can see that R has treated order creation date, MV and working date as factors, we will have to change their data types.
+
+
+## 4. Dealing with Data Types using Lubridate Package
+
+```{r}
+ecom$Working.Date <- as.character(ecom$Working.Date)
+ecom$created_at <- as.character(ecom$created_at)
+ecom$Customer.Since <- as.character(ecom$Customer.Since)
+ecom$MV <- as.numeric(ecom$MV)
+ecom$Working.Date <- mdy(ecom$Working.Date)
+ecom$created_at <- mdy(ecom$created_at)
+ecom$Customer.Since <- ym(ecom$Customer.Since)
+# Checking new data types
+class(ecom$MV)
+class(ecom$Working.Date)
+class(ecom$created_at)
+```
+
+
+## 5. Checking for any Missing Values
+
+```{r}
+sum(is.na(ecom))
+```
+
+Dataset has no missing values.
+
+
+## 6. Exploratory Data Analysis
+
+### 6.1 Number of Orders by Delivery Status
+
+```{r}
+ecom %>% select(item_id, status) %>% 
+  group_by(status) %>%
+  summarise(Total_Orders = n()) %>% 
+  arrange(desc(Total_Orders)) -> orders_by_status
+print(orders_by_status)
+```
+
+
+#### 6.1.1 Plot
+
+```{r}
+ orders_by_status %>% ggplot(aes(Total_Orders, status)) +
+  geom_bar(stat = "identity", fill = "#0D1282") +
+  labs(title = "Orders by Delivery Status", x = "# of Orders", y = "Order Status")
+```
+
+
+### 6.2 Total Earnings by Category
+
+```{r}
+ecom %>% select(category_name, grand_total) %>% 
+  group_by(category_name) %>%
+  summarise(Total_Amount_in_Lacs = sum(grand_total)/10^5) %>% 
+  arrange(desc(Total_Amount_in_Lacs)) -> cat_total
+# Rounding off values to 2 decimal places
+cat_total$Total_Amount_in_Lacs <- round(cat_total$Total_Amount_in_Lacs,2)
+print(cat_total)
+```
+
+
+### 6.3 Average Order Value by Category
+
+```{r}
+ecom %>% select(category_name, grand_total) %>% 
+  group_by(category_name) %>%
+  summarise(Avg_Order_Value = mean(grand_total)) -> cat_avg
+cat_avg %>% arrange(desc(Avg_Order_Value)) -> cat_avg
+cat_avg$Avg_Order_Value <- round(cat_avg$Avg_Order_Value,2)
+print(cat_avg)
+```
+
+
+### 6.4 Number of Orders by Payment Method
+
+```{r}
+ecom %>% select(payment_method, item_id) %>% 
+  group_by(payment_method) %>%
+  summarise(Total_Payments = n()) %>% 
+  arrange(desc(Total_Payments)) -> Payments_Frequency
+print(Payments_Frequency)
+```
+
+
+### 6.5 Average Discount by Top 10 Payment Methods
+
+```{r}
+ecom %>% select(payment_method, discount_amount, item_id) %>% 
+  group_by(payment_method) %>% 
+  summarise(Avg_Discount = sum(discount_amount)/n()) %>% 
+  arrange(desc(Avg_Discount)) %>% 
+  head(10) -> Avg_Discount
+Avg_Discount$Avg_Discount <- round(Avg_Discount$Avg_Discount,2)
+print(Avg_Discount)
+```
+
+
+#### 6.5.1 Plot
+
+```{r}
+Avg_Discount %>% ggplot(aes(payment_method, Avg_Discount)) +
+  geom_bar(stat = "identity", fill = "#0D1282" ) +
+  coord_flip() + 
+  labs(title = "Avg Discount by Payment Method", x = "Discount Amount", y = "Payment Method") 
+```
+
+### 6.6 Number of Customers by Month
+
+```{r}
+ecom %>% select(Customer.Since, Year) %>% 
+  group_by(Customer.Since) %>% 
+  summarise(Total_Customers = n()) -> customers_by_month
+print(customers_by_month)
+```
+
+#### 6.6.1 Plot 
+```{r}
+customers_by_month %>% ggplot(aes(Customer.Since, Total_Customers)) +
+  geom_point(color="#0D1282") +
+  geom_line(color="#0D1282") +
+  geom_smooth(method = lm, color = "#0D1282") +
+  labs(title = "Customers by Year", x = "Year", y = "# of Customers") 
+```
+
+
+### 6.7 Number of Orders by Year
+
+```{r}
+ecom %>% select(Year, item_id) %>% 
+  group_by(Year) %>% 
+  summarise(Total_Order = n()) -> Orders_Per_Year
+```
+
+
+#### 6.7.1 Plot
+
+```{r}
+bar_chart <- Orders_Per_Year %>%ggplot(aes(Year, Total_Order)) +
+  geom_bar(stat = "identity", fill = "#0D1282") +
+  labs(title = "# of Order by Year", x = "Years" , y = "# of Orders")
+print(bar_chart)
+```
+
+
+### 6.8 Sales by Fiscal Year
+
+```{r}
+ecom %>% select(FY, grand_total) %>% 
+  group_by(FY) %>% 
+  summarise(Total_Sales_in_Arabs = sum(grand_total/10^9)) -> sales_year
+```
+
+
+#### 6.8.1 Plot
+
+```{r}
+sales_year %>% ggplot(aes(FY, Total_Sales_in_Arabs)) +
+  geom_bar(fill="#0D1282", stat = "identity") + 
+  labs(title = "Total Sales by Fiscal Year", x= "Fiscal Year", y = "Total Sales in Arab")
+```
+
+Thank You.....
